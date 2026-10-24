@@ -98,6 +98,25 @@ try {
     2,
   );
   assert.deepEqual(errors, []);
+  const brokenContext = await browser.newContext({ serviceWorkers: "block" });
+  const brokenPage = await brokenContext.newPage();
+  await brokenPage.route("**/assets/index-*.js", (route) => route.abort());
+  await brokenPage.goto("http://127.0.0.1:4174/my-flash-card/");
+  await brokenPage
+    .getByRole("heading", { name: "Folio couldn’t finish loading" })
+    .waitFor();
+  await brokenPage.unroute("**/assets/index-*.js");
+  await brokenPage
+    .getByRole("button", { name: "Refresh app files safely" })
+    .click();
+  await brokenPage
+    .getByRole("button", { name: "Try a sample deck", exact: true })
+    .waitFor();
+  await brokenContext.close();
+  console.log(
+    "PASS: a blocked application bundle shows recovery and successfully reloads.",
+  );
+
   console.log(
     "PASS: GitHub Pages subpath, service worker, offline reload, offline study, offline CSV worker, and persistent imported data.",
   );

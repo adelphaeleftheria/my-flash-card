@@ -13,7 +13,71 @@
     <title>Folio — A little every day.</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <p style="padding: 32px; font-family: system-ui">Opening Folio…</p>
+    </div>
+    <section
+      id="startup-recovery"
+      hidden
+      style="
+        padding: 32px;
+        max-width: 600px;
+        margin: auto;
+        font: 16px/1.6 system-ui;
+        color: #303a34;
+        background: #fafbf8;
+      "
+    >
+      <h1>Folio couldn’t finish loading</h1>
+      <p>
+        A saved app version or an incomplete deployment may be preventing
+        startup.
+      </p>
+      <button id="reload-app" style="padding: 12px; cursor: pointer">
+        Refresh app files safely
+      </button>
+      <p>
+        This refreshes app files only. It does not delete your decks or study
+        history.
+      </p>
+      <p>
+        If this continues, check that GitHub Pages uses
+        <strong>GitHub Actions</strong>, and that the latest deployment
+        succeeded.
+      </p>
+    </section>
+    <script>
+      const recovery = document.getElementById("startup-recovery");
+      const showRecovery = () => {
+        recovery.hidden = false;
+      };
+      window.addEventListener("error", showRecovery, true);
+      window.addEventListener("unhandledrejection", showRecovery);
+      setTimeout(() => {
+        if (!document.querySelector(".app-shell, .loading")) showRecovery();
+      }, 12000);
+      document.getElementById("reload-app").onclick = async () => {
+        const button = document.getElementById("reload-app");
+        button.disabled = true;
+        button.textContent = "Refreshing app files…";
+        try {
+          const scope = new URL("./", location.href).href;
+          if ("serviceWorker" in navigator) {
+            for (const registration of await navigator.serviceWorker.getRegistrations()) {
+              if (registration.scope === scope) await registration.unregister();
+            }
+          }
+          if ("caches" in window) {
+            for (const key of await caches.keys())
+              if (key.startsWith("folio-shell-")) await caches.delete(key);
+          }
+          location.reload();
+        } catch {
+          button.disabled = false;
+          button.textContent = "Try refreshing again";
+        }
+      };
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
