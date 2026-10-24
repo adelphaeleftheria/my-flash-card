@@ -1,0 +1,52 @@
+{
+  "name": "my-flash-card",
+  "version": "1.0.0",
+  "description": "Folio \u2014 a calm, local-first vocabulary and spaced-repetition app",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build && node scripts/cache-shell.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run tests/core.test.ts",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:e2e": "playwright test",
+    "test:offline": "npm run build && node tests/offline.mjs",
+    "format": "prettier --write src tests scripts *.json *.ts index.html README.md .github"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adelphaeleftheria/my-flash-card.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/adelphaeleftheria/my-flash-card/issues"
+  },
+  "homepage": "https://github.com/adelphaeleftheria/my-flash-card#readme",
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
+    "idb": "^8.0.4",
+    "lucide-react": "^1.61.0",
+    "papaparse": "^5.7.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
