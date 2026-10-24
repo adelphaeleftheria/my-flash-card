@@ -1,3 +1,4 @@
+import { decodeCSV } from "../features/csv-file";
 import { useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -34,7 +35,8 @@ export function Importer({
     [error, setError] = useState(""),
     [skip, setSkip] = useState(true),
     [busy, setBusy] = useState(false),
-    [filename, setFilename] = useState("");
+    [filename, setFilename] = useState(""),
+    [encoding, setEncoding] = useState("auto");
   const input = useRef<HTMLInputElement>(null);
   async function read(file?: File) {
     if (!file) return;
@@ -48,15 +50,35 @@ export function Importer({
     setError("");
     try {
       const bytes = await file.arrayBuffer();
-      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      const { default: Worker } = await import("../features/csv.worker?worker");
-      const worker = new Worker();
-      const result = await new Promise<ParsedCSV>((resolve, reject) => {
-        worker.onmessage = (e) => resolve(e.data);
-        worker.onerror = () => reject(new Error("We could not read this CSV."));
-        worker.postMessage(text);
-      });
-      worker.terminate();
+      const text = decodeCSV(bytes, encoding);
+      let result: ParsedCSV;
+      // Browsers/extensions can block workers. Keep importing available in that case.
+      try {
+        const { default: CSVWorker } =
+          await import("../features/csv.worker?worker");
+        const worker = new CSVWorker();
+        try {
+          result = await new Promise<ParsedCSV>((resolve, reject) => {
+            const timer = setTimeout(
+              () => reject(new Error("CSV worker timed out")),
+              15000,
+            );
+            worker.onmessage = (e) => {
+              clearTimeout(timer);
+              resolve(e.data);
+            };
+            worker.onerror = () => {
+              clearTimeout(timer);
+              reject(new Error("CSV worker unavailable"));
+            };
+            worker.postMessage(text);
+          });
+        } finally {
+          worker.terminate();
+        }
+      } catch {
+        result = parseCSV(text);
+      }
       setParsed(result);
       setMapping(result.headers);
       setFront(result.headers[0] || "");
@@ -64,9 +86,11 @@ export function Importer({
       setName(file.name.replace(/\.csv$/i, "").replace(/[_-]/g, " "));
       setFilename(file.name);
       setStep(1);
-    } catch {
+    } catch (cause) {
       setError(
-        "We couldn’t read this CSV. Use UTF-8 encoding and a header row.",
+        cause instanceof Error
+          ? cause.message
+          : "We couldn’t open this file. Try choosing it again.",
       );
     } finally {
       setBusy(false);
@@ -167,6 +191,21 @@ export function Importer({
       )}
       {step === 0 ? (
         <>
+          <label>
+            File encoding
+            <select
+              aria-label="File encoding"
+              value={encoding}
+              onChange={(e) => setEncoding(e.target.value)}
+            >
+              <option value="auto">Automatic (UTF-8 / UTF-16)</option>
+              <option value="windows-1252">
+                Windows-1252 (older Excel, Western European)
+              </option>
+              <option value="utf-16le">UTF-16 little endian</option>
+              <option value="utf-16be">UTF-16 big endian</option>
+            </select>
+          </label>
           <div
             className="dropzone"
             onDragOver={(e) => e.preventDefault()}
@@ -187,7 +226,9 @@ export function Importer({
             >
               {busy ? "Reading your file…" : "Browse files"}
             </button>
-            <small>UTF-8 CSV · comma, semicolon or tab · up to 10 MB</small>
+            <small>
+              UTF-8 / UTF-16 CSV · comma, semicolon or tab · up to 10 MB
+            </small>
           </div>
           <input
             ref={input}
@@ -219,7 +260,7 @@ export function Importer({
                 <small>
                   {parsed.rows.length} rows · {parsed.headers.length} columns ·{" "}
                   {parsed.delimiter === "\t" ? "tab" : parsed.delimiter}{" "}
-                  delimiter · UTF-8
+                  delimiter · {encoding === "auto" ? "Unicode" : encoding}
                 </small>
               </div>
             </div>

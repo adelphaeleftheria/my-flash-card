@@ -1,3 +1,4 @@
+import { decodeCSV } from "../src/features/csv-file";
 import { describe, it, expect } from "vitest";
 import { parseCSV, exportCSV, duplicateKey } from "../src/features/csv";
 import { schedule } from "../src/features/scheduler";
@@ -164,5 +165,27 @@ describe("backups", () => {
     const d = addSample(emptyData());
     d.cards[0].scheduling.due = NaN;
     expect(() => validateBackup(d)).toThrow();
+  });
+});
+
+describe("CSV file encodings", () => {
+  it("reads UTF-8 without losing umlauts", () => {
+    expect(
+      decodeCSV(
+        new TextEncoder().encode("German,English\nHäuser,houses").buffer,
+      ),
+    ).toContain("Häuser");
+  });
+  it("detects Excel UTF-16 BOM", () => {
+    expect(
+      decodeCSV(
+        new Uint8Array([255, 254, 72, 0, 228, 0, 117, 0, 115, 0]).buffer,
+      ),
+    ).toBe("Häus");
+  });
+  it("explains legacy encoding and permits explicit Windows-1252", () => {
+    const bytes = new Uint8Array([72, 228, 117, 115]).buffer;
+    expect(() => decodeCSV(bytes)).toThrow("Windows-1252");
+    expect(decodeCSV(bytes, "windows-1252")).toBe("Häus");
   });
 });

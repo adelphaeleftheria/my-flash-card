@@ -93,15 +93,13 @@ test("CSV upload mapping preview, duplicate protection and restore", async ({
   await page
     .getByRole("button", { name: "Import your first CSV", exact: true })
     .click();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "Travel.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(
-        'German,English,Memory trick\n"Häuser","houses","many, many houses"\nHaus,house,home\nHaus,house,duplicate\n,missing,invalid\n',
-      ),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "Travel.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'German,English,Memory trick\n"Häuser","houses","many, many houses"\nHaus,house,home\nHaus,house,duplicate\n,missing,invalid\n',
+    ),
+  });
   await expect(
     page.getByText("4 rows · 3 columns", { exact: false }),
   ).toBeVisible();
@@ -269,4 +267,27 @@ test("study modes, card difficulty, and page accessibility", async ({
   await expect(
     page.getByRole("button", { name: /Haus/ }).first(),
   ).toBeVisible();
+});
+
+test("legacy Excel encoding and blocked worker fallback", async ({ page }) => {
+  await page.route("**/*csv.worker*", (route) => route.abort());
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import your first CSV", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "File encoding", exact: true })
+    .selectOption("windows-1252");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles({
+      name: "excel.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("German,English\nHäuser,houses\n", "latin1"),
+    });
+  await page.getByRole("button", { name: "Preview cards" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Häuser", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("1 cards ready to import")).toBeVisible();
 });
